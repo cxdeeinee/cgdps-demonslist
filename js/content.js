@@ -7,9 +7,15 @@ const dir = "/data";
 
 export async function fetchList() {
     const listResult = await fetch(`${dir}/_list.json`);
+    console.log(await listResult.text());
     const packResult = await fetch(`${dir}/_packlist.json`);
+    console.log(await packResult.text());
+
+    console.log("List:", listResult);
+    console.log("PacksList:", packResult);
     try {
         const list = await listResult.json();
+        console.log(await listResult.text());
         const packsList = await packResult.json();
         return await Promise.all(
             list.map(async (path, rank) => {
