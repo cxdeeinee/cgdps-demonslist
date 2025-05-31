@@ -203,6 +203,7 @@ export default {
         this.list = await fetchList();
         this.editors = await fetchEditors();
         this.supporters = await fetchSupporters();
+        console.log(await fetchList())
 
         // Error handling
         if (!this.list) {
