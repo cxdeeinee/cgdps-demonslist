@@ -1,18 +1,14 @@
 {
-	"id": 107,
-	"name": "HAHAHAHA",
-	"tags": [
-		"2.2",
-		"Short",
-		"Fast-Paced"
-	],
-	"author": 77,
-	"creators": [],
-	"verifier": 0,
-	"verification": "",
-	"percentToQualify": 100,
-	"password": "Free to Copy",
-	"song": 4563902,
-	"records": [
-	]
+    "id": 1,
+    "name": "Level Name",
+    "author": "Test3",
+    "creators": [
+        "Test1",
+        "Test2"
+    ],
+    "verifier": "verifier",
+    "verification": "link verification",
+    "percentToQualify": 51,
+    "password": "put here password",
+    "records": []
 }
