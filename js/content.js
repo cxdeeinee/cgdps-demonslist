@@ -7,20 +7,15 @@ const dir = "/data";
 
 export async function fetchList() {
     const listResult = await fetch(`${dir}/_list.json`);
-    console.log(await listResult.text());
     const packResult = await fetch(`${dir}/_packlist.json`);
-    console.log(await packResult.text());
-
-    console.log("List:", listResult);
-    console.log("PacksList:", packResult);
     try {
         const list = await listResult.json();
-        console.log(await listResult.text());
         const packsList = await packResult.json();
+
         return await Promise.all(
             list.map(async (path, rank) => {
-                const levelResult = await fetch(`${dir}/${path}.json`);
                 try {
+                    const levelResult = await fetch(`${dir}/${path}.json`);
                     const level = await levelResult.json();
                     let packs = packsList.filter((x) =>
                         x.levels.includes(path)
@@ -36,14 +31,14 @@ export async function fetchList() {
                         },
                         null,
                     ];
-                } catch {
-                    console.error(`Failed to load level #${rank + 1} ${path}.`);
+                } catch (err) {
+                    console.error(`Failed to load level #${rank + 1} (${path}.json):`, err);
                     return [null, path];
                 }
             })
         );
-    } catch {
-        console.error(`Failed to load list.`);
+    } catch (err) {
+        console.error("Failed to load _list.json or _packlist.json:", err);
         return null;
     }
 }
@@ -70,14 +65,20 @@ export async function fetchSupporters() {
 
 export async function fetchLeaderboard() {
     const list = await fetchList();
+    if (!list) {
+        console.error("fetchList() returned null");
+        return [[], ["Failed to load list"]];
+    }
+
     const packResult = await (await fetch(`${dir}/_packlist.json`)).json();
     const scoreMap = {};
     const errs = [];
     const packMultiplier = 1.5;
-    const scoreLookup = calculateScores(list.length)
+    const scoreLookup = calculateScores(list.length);
+
     list.forEach(([level, err], rank) => {
-        if (err) {
-            errs.push(err);
+        if (err || !level) {
+            errs.push(err ?? `Unknown error at rank ${rank}`);
             return;
         }
 
@@ -92,14 +93,14 @@ export async function fetchLeaderboard() {
             progressed: [],
             packs: [],
         };
-        const { verified } = scoreMap[verifier];
-        verified.push({
+        scoreMap[verifier].verified.push({
             rank: rank + 1,
             level: level.name,
             score: scoreLookup[rank],
             link: level.verification,
             path: level.path,
         });
+
         // Records
         level.records.forEach((record) => {
             const user =
@@ -122,68 +123,55 @@ export async function fetchLeaderboard() {
                     link: record.link,
                     path: level.path,
                 });
-                return;
+            } else {
+                progressed.push({
+                    rank: rank + 1,
+                    level: level.name,
+                    percent: record.percent,
+                    score: scoreLookup[rank],
+                    link: record.link,
+                    path: level.path,
+                });
             }
-
-            progressed.push({
-                rank: rank + 1,
-                level: level.name,
-                percent: record.percent,
-                score: scoreLookup[rank],
-                link: record.link,
-                path: level.path,
-            });
         });
     });
-    for (let user of Object.entries(scoreMap)) {
-        let levels = [...user[1]["verified"], ...user[1]["completed"]].map(
-            (x) => x["path"]
-        );
+
+    for (let [username, scores] of Object.entries(scoreMap)) {
+        let completedPaths = [
+            ...scores.verified,
+            ...scores.completed,
+        ].map((x) => x.path);
+
         for (let pack of packResult) {
-            if (pack.levels.every((e1) => levels.includes(e1))) {
-                user[1]["packs"].push(pack);
+            if (pack.levels.every((lvl) => completedPaths.includes(lvl))) {
+                scores.packs.push(pack);
             }
         }
-        // for (let pack of user[1]["packs"]) {
-        //     const packLevelScores = [];
-        //     const allUserLevels = [
-        //         ...user[1]["verified"],
-        //         ...user[1]["completed"],
-        //     ];
-        //     for (let level of pack["levels"]) {
-        //         let userLevel = allUserLevels.find((lvl) => lvl.path == level);
-        //         packLevelScores.push(userLevel.score);
-        //     }
-        //     let packScore = 0;
-        //     packLevelScores.forEach((score) => (packScore += score));
-        //     packScore = packScore * 1.5;
-        // }
     }
 
-    // Wrap in extra Object containing the user and total score
     const res = Object.entries(scoreMap).map(([user, scores]) => {
         const { verified, completed, progressed } = scores;
 
         let packScore = 0;
         let packScoreMultiplied = 0;
-        for (let pack of scores["packs"]) {
-            const packLevelScores = [];
-            const allUserLevels = [
-                ...scores["verified"],
-                ...scores["completed"],
-            ];
-            for (let level of pack["levels"]) {
-                let userLevel = allUserLevels.find((lvl) => lvl.path == level);
-                packLevelScores.push(userLevel.score);
-            }
-            packLevelScores.forEach((score) => (packScore += score));
-            packScoreMultiplied = packScore * packMultiplier;
-        }
+        for (let pack of scores.packs) {
+            const allUserLevels = [...verified, ...completed];
+            const packLevelScores = pack.levels
+                .map((lvlPath) =>
+                    allUserLevels.find((lvl) => lvl.path === lvlPath)
+                )
+                .filter((lvl) => lvl) // skip undefined
+                .map((lvl) => lvl.score);
 
-        let totalWithoutBonus = [verified, completed, progressed]
-            .flat()
-            .reduce((prev, cur) => prev + cur.score, 0);
-        const total = totalWithoutBonus - packScore + packScoreMultiplied
+            packScore += packLevelScores.reduce((a, b) => a + b, 0);
+        }
+        packScoreMultiplied = packScore * packMultiplier;
+
+        const totalWithoutBonus = [...verified, ...completed, ...progressed].reduce(
+            (sum, x) => sum + x.score,
+            0
+        );
+        const total = totalWithoutBonus - packScore + packScoreMultiplied;
 
         return {
             user,
@@ -193,45 +181,43 @@ export async function fetchLeaderboard() {
         };
     });
 
-    // Sort by total score
     return [res.sort((a, b) => b.total - a.total), errs];
 }
 
 export async function fetchPacks() {
     try {
         const packResult = await fetch(`${dir}/_packlist.json`);
-        const packsList = await packResult.json();
-        return packsList;
+        return await packResult.json();
     } catch {
         return null;
     }
 }
 
 export async function fetchPackLevels(packname) {
-    const packResult = await fetch(`${dir}/_packlist.json`);
-    const packsList = await packResult.json();
-    const selectedPack = await packsList.find((pack) => pack.name == packname);
     try {
+        const packResult = await fetch(`${dir}/_packlist.json`);
+        const packsList = await packResult.json();
+        const selectedPack = packsList.find((pack) => pack.name === packname);
+
+        if (!selectedPack) {
+            console.warn(`Pack not found: ${packname}`);
+            return null;
+        }
+
         return await Promise.all(
             selectedPack.levels.map(async (path, rank) => {
-                const levelResult = await fetch(`${dir}/${path}.json`);
                 try {
+                    const levelResult = await fetch(`${dir}/${path}.json`);
                     const level = await levelResult.json();
-                    return [
-                        {
-                            level,
-                            path,
-                        },
-                        null,
-                    ];
-                } catch {
-                    console.error(`Failed to load level #${rank + 1} ${path}.`);
+                    return [{ level, path }, null];
+                } catch (err) {
+                    console.error(`Failed to load level #${rank + 1} ${path}.`, err);
                     return [null, path];
                 }
             })
         );
     } catch (e) {
-        console.error(`Failed to load packs.`, e);
+        console.error(`Failed to load pack levels:`, e);
         return null;
     }
 }
