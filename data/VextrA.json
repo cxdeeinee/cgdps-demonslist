@@ -1,18 +1,19 @@
 {
-    "id": 115,
-    "name": "VextrA",
+    "id": 119,
+    "name": "Goofdynamix",
     "tags": [
         "2.2",
         "Fast",
-        "Fast-Paced"
+        "Fast-Paced",
+        "Long"
     ],
-    "author": "wnqqstellar",
-    "creators": ["wnqqstellar"],
+    "author": "GDoof",
+    "creators": ["GDoof", "others (Megacollab)"],
     "verifier": "None yet",
     "verification": "https://www.youtube.com/watch?v=2c0t5LLwHHo",
     "percentToQualify": 100,
     "password": "Free to Copy",
-    "song": 5686027,
+    "song": "Electrodynamix",
     "records": [
     ]
 }
