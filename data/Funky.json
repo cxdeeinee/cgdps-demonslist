@@ -1,0 +1,18 @@
+{
+    "id": 119,
+    "name": "Funky",
+    "tags": [
+        "Tricky",
+        "Annoying",
+        "Short"
+    ],
+    "author": "GDoof",
+    "creators": ["GDoof"],
+    "verifier": "GDoof",
+    "verification": "",
+    "percentToQualify": 100,
+    "password": "Free to Copy",
+    "song": "Clutterfunk",
+    "records": [
+    ]
+}
